@@ -8,6 +8,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"html/template"
 	"log"
@@ -21,20 +22,22 @@ var addr = flag.String("addr", "localhost:8080", "http service address")
 var upgrader = websocket.Upgrader{} // use default options
 
 func echo(w http.ResponseWriter, r *http.Request) {
-	c, err := upgrader.Upgrade(w, r, nil)
+	c, err := upgrader.Upgrade(w, r, nil) // http request to websocket protocal，有时间看看
 	if err != nil {
 		log.Print("upgrade:", err)
 		return
 	}
 	defer c.Close()
 	for {
-		mt, message, err := c.ReadMessage()
+		mt, message, err := c.ReadMessage() // 是否是阻塞模式，大概率是阻塞
 		if err != nil {
 			log.Println("read:", err)
 			break
 		}
 		log.Printf("recv: %s", message)
-		err = c.WriteMessage(mt, message)
+
+		messageSendToClient := bytes.Join([][]byte{[]byte("Messge from client: "), message}, []byte(""))
+		err = c.WriteMessage(mt, messageSendToClient)
 		if err != nil {
 			log.Println("write:", err)
 			break
@@ -43,7 +46,7 @@ func echo(w http.ResponseWriter, r *http.Request) {
 }
 
 func home(w http.ResponseWriter, r *http.Request) {
-	homeTemplate.Execute(w, "ws://"+r.Host+"/echo")
+	homeTemplate.Execute(w, "ws://"+r.Host+"/echo") // 模板的使用，需要了解
 }
 
 func main() {

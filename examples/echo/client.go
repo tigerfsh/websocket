@@ -9,6 +9,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net/url"
 	"os"
@@ -22,7 +23,7 @@ var addr = flag.String("addr", "localhost:8080", "http service address")
 
 func main() {
 	flag.Parse()
-	log.SetFlags(0)
+	log.SetFlags(0) // 设置日志等级？
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
@@ -42,25 +43,27 @@ func main() {
 		defer close(done)
 		for {
 			_, message, err := c.ReadMessage()
+			fmt.Println("Get msg from server.")
 			if err != nil {
-				log.Println("read:", err)
+				log.Println("read err:", err)
 				return
 			}
 			log.Printf("recv: %s", message)
 		}
 	}()
 
-	ticker := time.NewTicker(time.Second)
+	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-done:
+			fmt.Println("read err -> close done -> return ")
 			return
-		case t := <-ticker.C:
-			err := c.WriteMessage(websocket.TextMessage, []byte(t.String()))
+		case <-ticker.C:
+			err := c.WriteMessage(websocket.TextMessage, []byte("hello, world."))
 			if err != nil {
-				log.Println("write:", err)
+				log.Println("write err:", err)
 				return
 			}
 		case <-interrupt:
@@ -70,12 +73,14 @@ func main() {
 			// waiting (with timeout) for the server to close the connection.
 			err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 			if err != nil {
-				log.Println("write close:", err)
+				log.Println("write close err:", err)
 				return
 			}
 			select {
 			case <-done:
+				fmt.Println("exit from done.")
 			case <-time.After(time.Second):
+				fmt.Println("exit after 1 second.")
 			}
 			return
 		}
